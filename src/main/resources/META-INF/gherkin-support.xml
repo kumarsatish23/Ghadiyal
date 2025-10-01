@@ -1,0 +1,15 @@
+<idea-plugin>
+    <!-- Gherkin-specific extensions that are only loaded when Gherkin plugin is available -->
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Reference Contributor for Ctrl+Click navigation -->
+        <psi.referenceContributor 
+            language="Gherkin" 
+            implementation="com.gherkin.navigator.GherkinStepReferenceContributor"/>
+        
+        <!-- Line Marker Provider for gutter icons -->
+        <codeInsight.lineMarkerProvider 
+            language="Gherkin" 
+            implementationClass="com.gherkin.navigator.GherkinStepLineMarkerProvider"/>
+    </extensions>
+</idea-plugin>
+

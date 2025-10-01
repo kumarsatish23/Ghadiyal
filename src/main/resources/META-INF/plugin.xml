@@ -1,0 +1,103 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
+    <id>com.gherkin.navigator</id>
+
+    <!-- Public plugin name should be written in Title Case.
+         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
+    <name>Ghadiyal</name>
+    
+    <!-- Plugin icon (Gherkin/Cucumber themed) -->
+    <icon>pluginIcon.svg</icon>
+
+    <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
+    <vendor email="kumarsatish23@gmail.com" url="https://github.com/kumarsatish23">Satish Kumar Rai</vendor>
+
+    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
+         Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
+         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
+    <description><![CDATA[
+    <h3>🥒 Ghadiyal - Professional Gherkin Navigator</h3>
+    <p>
+        <strong>Ghadiyal</strong> is a production-ready IntelliJ IDEA and PyCharm plugin that provides 
+        <strong>instant, precise navigation</strong> from Gherkin feature files to their step definitions. 
+        Built with advanced multi-threaded search strategies for maximum speed and accuracy.
+    </p>
+    
+    <h4>✨ Key Features:</h4>
+    <ul>
+        <li><strong>Ctrl+Click Navigation</strong> - Command/Control click on any Gherkin step to jump directly to its definition</li>
+        <li><strong>Native-Like Hyperlinks</strong> - Blue underline appears on hover, just like method navigation</li>
+        <li><strong>Multi-Threaded Search</strong> - 3 parallel search strategies for lightning-fast lookups</li>
+        <li><strong>Smart Caching</strong> - First search ~1-2 seconds, subsequent searches instant</li>
+        <li><strong>Visual Gutter Icons</strong> - See which steps have definitions at a glance</li>
+        <li><strong>Exact Matching</strong> - Precise word-by-word validation, no false positives</li>
+        <li><strong>Parameter Handling</strong> - Automatically converts &lt;param&gt; ↔ {param}</li>
+    </ul>
+    
+    <h4>🌐 Multi-Framework Support:</h4>
+    <ul>
+        <li><strong>Python:</strong> Behave (@given), pytest-bdd (parsers.parse())</li>
+        <li><strong>Java:</strong> Cucumber (@Given, @When, @Then)</li>
+        <li><strong>Kotlin:</strong> Cucumber annotations</li>
+    </ul>
+    
+    <h4>🚀 Advanced Features:</h4>
+    <ul>
+        <li>Multi-line decorator support for pytest-bdd</li>
+        <li>Thread pool optimization (uses processors/2 threads)</li>
+        <li>5-second timeout protection per strategy</li>
+        <li>Result caching for instant re-navigation</li>
+        <li>Supports complex regex patterns and parameter placeholders</li>
+    </ul>
+    
+    <h4>📊 Performance:</h4>
+    <ul>
+        <li>Plugin Size: Only 15 KB</li>
+        <li>First Navigation: ~1-2 seconds</li>
+        <li>Cached Navigation: Instant</li>
+        <li>Memory Footprint: Minimal</li>
+    </ul>
+    
+    <h4>🎯 How to Use:</h4>
+    <ol>
+        <li>Open any Gherkin .feature file</li>
+        <li>Hold <strong>Ctrl</strong> (or <strong>Cmd</strong> on Mac)</li>
+        <li>Hover over a step text - it becomes underlined</li>
+        <li>Click to navigate to the step definition!</li>
+    </ol>
+    
+    <p>
+        <strong>Example:</strong><br/>
+        Feature file: <code>Given user is logged in</code><br/>
+        Ctrl+Click → Jumps to: <code>@given("user is logged in")</code>
+    </p>
+    
+    <h4>🔗 Links:</h4>
+    <ul>
+        <li><a href="https://github.com/kumarsatish23/gherkin-navigator-plugin">GitHub Repository</a></li>
+        <li><a href="https://github.com/kumarsatish23/gherkin-navigator-plugin/issues">Report Issues</a></li>
+        <li><a href="https://github.com/kumarsatish23/gherkin-navigator-plugin/blob/main/README.md">Documentation</a></li>
+        <li><a href="https://github.com/kumarsatish23">Author: @kumarsatish23</a></li>
+    </ul>
+    
+    <p>
+        <em>Developed by <strong>Satish Kumar Rai</strong> - Backend developer passionate about building 
+        scalable systems and developer tools.</em>
+    </p>
+    
+    <p><small>License: Apache 2.0 | Compatible: IntelliJ IDEA & PyCharm 2023.2+</small></p>
+  ]]></description>
+
+    <!-- Product and plugin compatibility requirements.
+         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends optional="true" config-file="gherkin-support.xml">gherkin</depends>
+
+    <!-- Extension points defined by the plugin.
+         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Extensions are defined in gherkin-support.xml -->
+    </extensions>
+</idea-plugin>
+

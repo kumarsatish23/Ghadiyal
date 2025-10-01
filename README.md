@@ -62,11 +62,10 @@
 **Download the plugin:**
 
 ```bash
-# Direct download link
-https://github.com/kumarsatish23/ghadiyal-plugin/releases/download/v1.0.0/ghadiyal-plugin-1.0.0.zip
+wget https://github.com/kumarsatish23/Ghadiyal/blob/ee50d132085df1f21bd3bc3dbb38e3cad54719cf/releases/latest/download/ghadiyal-plugin-1.0.0.zip
 ```
 
-Or download from the [Releases](https://github.com/kumarsatish23/ghadiyal-plugin/releases) page.
+Or download from the [Releases](https://github.com/kumarsatish23/Ghadiyal/tree/main/releases) page.
 
 **Plugin Size:** 17 KB  
 **Compatible with:** IntelliJ IDEA 2023.2+, PyCharm 2023.2+
@@ -75,7 +74,7 @@ Or download from the [Releases](https://github.com/kumarsatish23/ghadiyal-plugin
 
 ### Method 1: Install from Disk (Recommended)
 
-1. Download the plugin zip file from the [Download](#-download) section
+1. Download the plugin zip file from the [Download](https://github.com/kumarsatish23/Ghadiyal/blob/ee50d132085df1f21bd3bc3dbb38e3cad54719cf/releases/latest/download/ghadiyal-plugin-1.0.0.zip) section
 2. Open PyCharm or IntelliJ IDEA
 3. Go to `Settings/Preferences` → `Plugins`
 4. Click the ⚙️ gear icon → `Install Plugin from Disk...`
@@ -87,10 +86,10 @@ Or download from the [Releases](https://github.com/kumarsatish23/ghadiyal-plugin
 
 #### Clone the repository
 ```bash
-git clone https://github.com/kumarsatish23/ghadiyal-plugin.git
+git clone https://github.com/kumarsatish23/Ghadiyal.git
 ```
 ```bash
-cd ghadiyal-plugin
+cd Ghadiyal
 ```
 #### Build the plugin
 ```bash
@@ -208,15 +207,6 @@ If you have 1000+ files, the first search might take 2-5 seconds. Subsequent sea
 - **Python:** `.py`
 - **Java:** `.java`
 - **Kotlin:** `.kt`
-
-## 📚 Documentation
-
-- **[Quick Start Guide](QUICKSTART.md)** - Get started in 5 minutes
-- **[Testing Guide](TEST_INSTRUCTIONS.md)** - How to test the plugin
-- **[Advanced Features](ADVANCED_FEATURES.md)** - Multi-threading, caching, performance
-- **[Debugging Guide](DEBUG_GUIDE.md)** - Troubleshooting common issues
-- **[Exact Matching](EXACT_MATCHING.md)** - How precise matching works
-- **[pytest-bdd Guide](PYTEST_BDD_TEST.md)** - pytest-bdd specific usage
 
 ## 🤝 Contributing
 

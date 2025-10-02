@@ -62,7 +62,7 @@
 **Download the plugin:**
 
 ```bash
-wget https://github.com/kumarsatish23/Ghadiyal/blob/ee50d132085df1f21bd3bc3dbb38e3cad54719cf/releases/latest/download/ghadiyal-plugin-1.0.0.zip
+wget https://github.com/kumarsatish23/Ghadiyal/blob/5b8ddcf18db1788a7deddc7c9a186435d1ba4d68/releases/latest/download/ghadiyal-plugin-1.0.0.zip
 ```
 
 Or download from the [Releases](https://github.com/kumarsatish23/Ghadiyal/tree/main/releases) page.
@@ -74,7 +74,7 @@ Or download from the [Releases](https://github.com/kumarsatish23/Ghadiyal/tree/m
 
 ### Method 1: Install from Disk (Recommended)
 
-1. Download the plugin zip file from the [Download](https://github.com/kumarsatish23/Ghadiyal/blob/ee50d132085df1f21bd3bc3dbb38e3cad54719cf/releases/latest/download/ghadiyal-plugin-1.0.0.zip) section
+1. Download the plugin zip file from the [Download](https://github.com/kumarsatish23/Ghadiyal/blob/5b8ddcf18db1788a7deddc7c9a186435d1ba4d68/releases/latest/download/ghadiyal-plugin-1.0.0.zip) section
 2. Open PyCharm or IntelliJ IDEA
 3. Go to `Settings/Preferences` → `Plugins`
 4. Click the ⚙️ gear icon → `Install Plugin from Disk...`

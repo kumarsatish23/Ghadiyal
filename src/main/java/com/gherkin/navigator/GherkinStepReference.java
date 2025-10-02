@@ -1,40 +1,57 @@
 package com.gherkin.navigator;
 
 import com.intellij.openapi.application.ReadAction;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.PsiSearchHelper;
 import com.intellij.psi.search.UsageSearchContext;
-import com.intellij.util.Processor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.cucumber.psi.GherkinStep;
 
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * High-performance Gherkin step reference with advanced search strategies.
- * Uses multi-threaded search and caching for maximum accuracy and speed.
+ * Uses multiple search strategies with smart caching for maximum accuracy without blocking.
  */
 public class GherkinStepReference extends PsiReferenceBase<GherkinStep> {
     
-    private static final ExecutorService SEARCH_EXECUTOR = Executors.newFixedThreadPool(
-        Math.max(2, Runtime.getRuntime().availableProcessors() / 2)
-    );
+    // Static cache shared across all instances for better performance
+    private static final Map<String, CacheEntry> RESOLUTION_CACHE = new ConcurrentHashMap<>();
+    private static final long CACHE_EXPIRY_MS = 5000; // 5 seconds
     
     private final String stepText;
     private final String normalizedStepText;
-    private volatile PsiElement cachedResult;
     
     public GherkinStepReference(@NotNull GherkinStep element) {
         super(element, calculateTextRange(element), false);
         this.stepText = extractStepText(element);
         this.normalizedStepText = normalizeStepText(stepText);
+    }
+    
+    /**
+     * Cache entry for storing resolved references with timestamp
+     */
+    private static class CacheEntry {
+        final PsiElement element;
+        final long timestamp;
+        
+        CacheEntry(PsiElement element) {
+            this.element = element;
+            this.timestamp = System.currentTimeMillis();
+        }
+        
+        boolean isValid() {
+            return element != null && element.isValid() && 
+                   (System.currentTimeMillis() - timestamp) < CACHE_EXPIRY_MS;
+        }
     }
     
     /**
@@ -71,7 +88,7 @@ public class GherkinStepReference extends PsiReferenceBase<GherkinStep> {
     }
     
     /**
-     * Resolve using multiple parallel search strategies for maximum accuracy.
+     * Resolve using multiple search strategies with smart caching.
      * This is what makes the hyperlink appear when hovering with Ctrl/Cmd.
      */
     @Nullable
@@ -81,50 +98,178 @@ public class GherkinStepReference extends PsiReferenceBase<GherkinStep> {
             return null;
         }
         
-        // Return cached result if available
-        if (cachedResult != null && cachedResult.isValid()) {
-            return cachedResult;
+        // Check cache first - key is project + normalized step text
+        Project project = myElement.getProject();
+        String cacheKey = project.getName() + ":" + normalizedStepText;
+        
+        CacheEntry cached = RESOLUTION_CACHE.get(cacheKey);
+        if (cached != null && cached.isValid()) {
+            return cached.element;
         }
         
-        Project project = myElement.getProject();
+        // Don't search during indexing - return null to avoid blocking
+        if (DumbService.isDumb(project)) {
+            return null;
+        }
         
         // Use ReadAction for thread-safe PSI access
-        cachedResult = ReadAction.compute(() -> {
-            // Use parallel search strategies for speed and accuracy
-            List<SearchStrategy> strategies = Arrays.asList(
-                new IndexedTextSearch(),
-                new WordBasedSearch(),
-                new PatternBasedSearch()
+        PsiElement result = ReadAction.compute(() -> performMultiStrategySearch(project));
+        
+        // Cache the result (even if null)
+        RESOLUTION_CACHE.put(cacheKey, new CacheEntry(result));
+        
+        // Cleanup old cache entries periodically (every 100 resolutions)
+        if (RESOLUTION_CACHE.size() > 1000) {
+            cleanupCache();
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Clean up expired cache entries
+     */
+    private void cleanupCache() {
+        RESOLUTION_CACHE.entrySet().removeIf(entry -> !entry.getValue().isValid());
+    }
+    
+    /**
+     * Perform multi-strategy search for maximum accuracy.
+     * Runs strategies sequentially (not parallel) to avoid thread overhead.
+     */
+    @Nullable
+    private PsiElement performMultiStrategySearch(Project project) {
+        Set<PsiElement> allMatches = new LinkedHashSet<>();
+        
+        // Strategy 1: Direct text search in strings (most precise)
+        List<PsiElement> directMatches = searchByDirectText(project, normalizedStepText);
+        allMatches.addAll(directMatches);
+        
+        // Strategy 2: Word-based search (catches variations)
+        if (allMatches.isEmpty()) {
+            List<PsiElement> wordMatches = searchBySignificantWord(project, normalizedStepText);
+            allMatches.addAll(wordMatches);
+        }
+        
+        // Strategy 3: Pattern-based search (comprehensive fallback)
+        if (allMatches.isEmpty()) {
+            List<PsiElement> patternMatches = searchByPattern(project, normalizedStepText);
+            allMatches.addAll(patternMatches);
+        }
+        
+        // Return best match from all strategies
+        return selectBestMatch(new ArrayList<>(allMatches));
+    }
+    
+    /**
+     * Strategy 1: Direct text search using PSI index
+     */
+    private List<PsiElement> searchByDirectText(Project project, String stepText) {
+        List<PsiElement> results = new ArrayList<>();
+        PsiSearchHelper searchHelper = PsiSearchHelper.getInstance(project);
+        GlobalSearchScope scope = GlobalSearchScope.allScope(project);
+        
+        searchHelper.processElementsWithWord(
+            (element, offsetInElement) -> {
+                if (isStepDefinition(element)) {
+                    String extracted = extractStepTextFromDefinition(element.getText());
+                    if (extracted != null && compareStepTexts(stepText, extracted)) {
+                        results.add(element);
+                    }
+                }
+                return true; // Continue searching for all matches
+            },
+            scope,
+            stepText,
+            UsageSearchContext.IN_STRINGS,
+            true,
+            false
+        );
+        
+        return results;
+    }
+    
+    /**
+     * Strategy 2: Word-based search for better recall
+     */
+    private List<PsiElement> searchBySignificantWord(Project project, String stepText) {
+        List<PsiElement> results = new ArrayList<>();
+        PsiSearchHelper searchHelper = PsiSearchHelper.getInstance(project);
+        GlobalSearchScope scope = GlobalSearchScope.allScope(project);
+        
+        // Extract most significant word
+        String[] words = stepText.split("\\s+");
+        String longestWord = "";
+        for (String word : words) {
+            String clean = word.replaceAll("[<>{}()\\[\\].,;:]", "");
+            if (clean.length() > longestWord.length() && clean.length() > 3) {
+                longestWord = clean;
+            }
+        }
+        
+        if (longestWord.isEmpty()) {
+            return results;
+        }
+        
+        final String searchWord = longestWord;
+        searchHelper.processElementsWithWord(
+            (element, offsetInElement) -> {
+                String text = element.getText();
+                if (text != null && text.contains(searchWord) && isStepDefinition(element)) {
+                    String extracted = extractStepTextFromDefinition(text);
+                    if (extracted != null && compareStepTexts(stepText, extracted)) {
+                        results.add(element);
+                    }
+                }
+                return true;
+            },
+            scope,
+            searchWord,
+            UsageSearchContext.IN_STRINGS,
+            true,
+            false
+        );
+        
+        return results;
+    }
+    
+    /**
+     * Strategy 3: Pattern-based search for annotations/decorators
+     */
+    private List<PsiElement> searchByPattern(Project project, String stepText) {
+        List<PsiElement> results = new ArrayList<>();
+        PsiSearchHelper searchHelper = PsiSearchHelper.getInstance(project);
+        GlobalSearchScope scope = GlobalSearchScope.allScope(project);
+        
+        // Search for decorator keywords
+        String[] keywords = {"given", "when", "then", "Given", "When", "Then"};
+        
+        for (String keyword : keywords) {
+            searchHelper.processElementsWithWord(
+                (element, offsetInElement) -> {
+                    String text = element.getText();
+                    if (text != null && text.contains("@" + keyword) && isStepDefinition(element)) {
+                        String extracted = extractStepTextFromDefinition(text);
+                        if (extracted != null && compareStepTexts(stepText, extracted)) {
+                            results.add(element);
+                        }
+                    }
+                    return true;
+                },
+                scope,
+                keyword,
+                UsageSearchContext.IN_CODE,
+                true,
+                false
             );
             
-            List<Future<List<PsiElement>>> futures = new ArrayList<>();
-            
-            // Execute all strategies in parallel
-            for (SearchStrategy strategy : strategies) {
-                Future<List<PsiElement>> future = SEARCH_EXECUTOR.submit(() -> 
-                    strategy.search(project, normalizedStepText)
-                );
-                futures.add(future);
+            // Stop if we found matches
+            if (!results.isEmpty()) {
+                break;
             }
-            
-            // Collect results from all strategies
-            List<PsiElement> allMatches = new ArrayList<>();
-            for (Future<List<PsiElement>> future : futures) {
-                try {
-                    List<PsiElement> matches = future.get(5, TimeUnit.SECONDS);
-                    if (matches != null) {
-                        allMatches.addAll(matches);
-                    }
-                } catch (Exception e) {
-                    // Continue with other strategies
-                }
-            }
-            
-            // Return best match
-            return selectBestMatch(allMatches);
-        });
+        }
         
-        return cachedResult;
+        return results;
     }
     
     /**
@@ -258,125 +403,6 @@ public class GherkinStepReference extends PsiReferenceBase<GherkinStep> {
         score -= (int)(lines * 50);
         
         return score;
-    }
-    
-    // ==================== Search Strategies ====================
-    
-    /**
-     * Base interface for search strategies
-     */
-    private interface SearchStrategy {
-        List<PsiElement> search(Project project, String stepText);
-    }
-    
-    /**
-     * Strategy 1: Indexed text search using PSI search helper
-     */
-    private class IndexedTextSearch implements SearchStrategy {
-        @Override
-        public List<PsiElement> search(Project project, String stepText) {
-            List<PsiElement> results = Collections.synchronizedList(new ArrayList<>());
-            PsiSearchHelper searchHelper = PsiSearchHelper.getInstance(project);
-            GlobalSearchScope scope = GlobalSearchScope.allScope(project);
-            
-            // Search for the step text in string literals
-            searchHelper.processElementsWithWord(
-                (element, offsetInElement) -> {
-                    if (isStepDefinition(element)) {
-                        results.add(element);
-                    }
-                    return true;
-                },
-                scope,
-                stepText,
-                UsageSearchContext.IN_STRINGS,
-                true,
-                false
-            );
-            
-            return results;
-        }
-    }
-    
-    /**
-     * Strategy 2: Word-based search for better recall
-     */
-    private class WordBasedSearch implements SearchStrategy {
-        @Override
-        public List<PsiElement> search(Project project, String stepText) {
-            List<PsiElement> results = Collections.synchronizedList(new ArrayList<>());
-            PsiSearchHelper searchHelper = PsiSearchHelper.getInstance(project);
-            GlobalSearchScope scope = GlobalSearchScope.allScope(project);
-            
-            // Extract significant words
-            String[] words = stepText.split("\\s+");
-            String longestWord = "";
-            for (String word : words) {
-                String clean = word.replaceAll("[<>{}]", "");
-                if (clean.length() > longestWord.length() && clean.length() > 3) {
-                    longestWord = clean;
-                }
-            }
-            
-            if (longestWord.isEmpty()) {
-                return results;
-            }
-            
-            final String searchWord = longestWord;
-            searchHelper.processElementsWithWord(
-                (element, offsetInElement) -> {
-                    String text = element.getText();
-                    if (text != null && text.contains(searchWord) && isStepDefinition(element)) {
-                        results.add(element);
-                    }
-                    return true;
-                },
-                scope,
-                searchWord,
-                UsageSearchContext.IN_STRINGS,
-                true,
-                false
-            );
-            
-            return results;
-        }
-    }
-    
-    /**
-     * Strategy 3: Pattern-based search for annotations/decorators
-     */
-    private class PatternBasedSearch implements SearchStrategy {
-        @Override
-        public List<PsiElement> search(Project project, String stepText) {
-            List<PsiElement> results = Collections.synchronizedList(new ArrayList<>());
-            PsiSearchHelper searchHelper = PsiSearchHelper.getInstance(project);
-            GlobalSearchScope scope = GlobalSearchScope.allScope(project);
-            
-            // Search for decorator keywords
-            String[] keywords = {"given", "when", "then", "Given", "When", "Then"};
-            
-            for (String keyword : keywords) {
-                searchHelper.processElementsWithWord(
-                    (element, offsetInElement) -> {
-                        String text = element.getText();
-                        if (text != null && text.startsWith("@" + keyword) && isStepDefinition(element)) {
-                            String extracted = extractStepTextFromDefinition(text);
-                            if (extracted != null && compareStepTexts(stepText, extracted)) {
-                                results.add(element);
-                            }
-                        }
-                        return true;
-                    },
-                    scope,
-                    keyword,
-                    UsageSearchContext.IN_CODE,
-                    true,
-                    false
-                );
-            }
-            
-            return results;
-        }
     }
     
     /**
